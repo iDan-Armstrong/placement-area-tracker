@@ -7,9 +7,9 @@ window.TRACKER_CONFIG = {
   clientId: "FXWMHiWVe99CqSRL",
 
   // Placement areas and the entry log this page reads and writes.
-  areasUrl: "https://services.arcgis.com/AfLVH0NU5WH2COCi/arcgis/rest/services/PA_Boundaries_TEST/FeatureServer/0",
-  logUrl: "https://services.arcgis.com/AfLVH0NU5WH2COCi/arcgis/rest/services/PA_Placement_Log_TEST/FeatureServer/0",
-  testMode: true,
+  areasUrl: "https://services.arcgis.com/AfLVH0NU5WH2COCi/arcgis/rest/services/PA_Boundaries/FeatureServer/6",
+  logUrl: "https://services.arcgis.com/AfLVH0NU5WH2COCi/arcgis/rest/services/PA_Placement_Log/FeatureServer/0",
+  testMode: false,
 
   // Map page: the two web maps to combine, and the layers the two modes act on.
   opsMapId: "1970236a98bb44daacbc26fc57b0bf13",
