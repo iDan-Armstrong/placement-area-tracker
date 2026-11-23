@@ -13,7 +13,8 @@ const SKEY = "pat-session", VKEY = "pat-pkce";
 let session = null;      // { token, username, expires }
 let areas = [];          // rows from the layer
 let log = [];            // rows from the log table
-let oidField = "OBJECTID", logOid = "OBJECTID";
+let oidField = "OBJECTID", logOid = "OBJECTID", hasLast = false;
+const LAST = "LastEntry"; // date of the last material entry. Date_ holds the survey date.
 let sel = null, type = "place", view = "table", busy = false, lastError = "";
 
 /* ---------- the whole calculation ---------- */
@@ -74,16 +75,19 @@ async function rest(url, params, post) {
   }
   return j;
 }
-const AREA_FIELDS = ["NAME", "TotalCapac", "UsedCapac", "AvailCapac", "PercCapac", "Date_", "Active", "Status", "SymbolStat", "Acres"];
+const BASE_FIELDS = ["NAME", "TotalCapac", "UsedCapac", "AvailCapac", "PercCapac", "Date_", "Active", "Status", "SymbolStat", "Acres"];
+const areaFields = () => [oidField].concat(BASE_FIELDS, hasLast ? [LAST] : []).join(",");
+const day = ms => (ms && ms > 631152000000 ? new Date(ms).toISOString().slice(0, 10) : "");
 function toArea(f) {
   const a = f.attributes;
-  return { oid: a[oidField], name: String(a.NAME), total: +a.TotalCapac || 0, used: +a.UsedCapac || 0, date: a.Date_ && a.Date_ > 631152000000 ? new Date(a.Date_).toISOString().slice(0, 10) : "", active: a.Active || "", status: a.Status || "", acres: +a.Acres || 0, rings: f.geometry ? f.geometry.rings : null };
+  return { oid: a[oidField], name: String(a.NAME), total: +a.TotalCapac || 0, used: +a.UsedCapac || 0, survey: day(a.Date_), last: day(a[LAST]), active: a.Active || "", status: a.Status || "", acres: +a.Acres || 0, rings: f.geometry ? f.geometry.rings : null };
 }
 const nameKey = n => { const m = /^(\d+)(.*)$/.exec(n) || [0, 1e9, n]; return [+m[1], m[2]]; };
 async function loadAll() {
   const meta = await rest(CFG.areasUrl, {});
   oidField = meta.objectIdField || "OBJECTID";
-  const q = await rest(CFG.areasUrl + "/query", { where: "1=1", outFields: [oidField].concat(AREA_FIELDS).join(","), returnGeometry: "true", outSR: "4326", geometryPrecision: "5" });
+  hasLast = (meta.fields || []).some(f => f.name === LAST);
+  const q = await rest(CFG.areasUrl + "/query", { where: "1=1", outFields: areaFields(), returnGeometry: "true", outSR: "4326", geometryPrecision: "5" });
   areas = q.features.map(toArea).sort((x, y) => { const a = nameKey(x.name), b = nameKey(y.name); return a[0] - b[0] || String(a[1]).localeCompare(String(b[1])); });
   if (!sel || !areas.some(a => a.name === sel)) sel = areas.length ? areas[0].name : null;
   buildMap();
@@ -98,17 +102,21 @@ async function loadLog() {
 async function saveEntry(e) {
   // Read the area again first, so two people saving at once cannot overwrite each other's totals.
   const cur = areas.find(a => a.name === e.area);
-  const fresh = await rest(CFG.areasUrl + "/query", { where: oidField + "=" + cur.oid, outFields: [oidField].concat(AREA_FIELDS).join(","), returnGeometry: "false" });
+  const fresh = await rest(CFG.areasUrl + "/query", { where: oidField + "=" + cur.oid, outFields: areaFields(), returnGeometry: "false" });
   if (!fresh.features.length) throw new Error("PA " + e.area + " was not found in the layer.");
   const now = toArea(fresh.features[0]);
+  if (now.active !== "Active" && e.type !== "settotal") throw new Error("PA " + e.area + " is marked " + (now.active || "not active") + ". Set it to Active on the map layer before recording material. Nothing was saved.");
   const next = applyEntry(now.total, now.used, e);
   const c = calc(next.total, next.used, now.active);
   const when = Date.parse(e.date + "T12:00:00Z");
-  const row = { AreaName: e.area, EntryType: TYPES[e.type], CubicYards: e.vol, EntryDate: when, Job: e.job, EnteredBy: e.by, Note: (e.note ? e.note + " " : "") + "(used " + fmt(now.used) + " to " + fmt(c.used) + ", capacity " + fmt(now.total) + " to " + fmt(c.total) + ")" };
+  const over = c.total > 0 && c.used > c.total ? " OVER CAPACITY by " + fmt(c.used - c.total) + " " + CFG.units + "." : "";
+  const row = { AreaName: e.area, EntryType: TYPES[e.type], CubicYards: e.vol, EntryDate: when, Job: e.job, EnteredBy: e.by, Note: (e.note ? e.note + " " : "") + (over ? over.trim() + " " : "") + "(used " + fmt(now.used) + " to " + fmt(c.used) + ", capacity " + fmt(now.total) + " to " + fmt(c.total) + ")" };
   const add = await rest(CFG.logUrl + "/applyEdits", { adds: JSON.stringify([{ attributes: row }]) }, true);
   const ar = add.addResults && add.addResults[0];
   if (!ar || !ar.success) throw new Error("The log row was not saved: " + JSON.stringify(ar && ar.error || add));
-  const attrs = { TotalCapac: c.total, UsedCapac: c.used, AvailCapac: c.avail, PercCapac: c.pct == null ? 0 : +c.pct.toFixed(4), SymbolStat: c.sym, Date_: when };
+  const attrs = { TotalCapac: c.total, UsedCapac: c.used, AvailCapac: c.avail, PercCapac: c.pct == null ? 0 : +c.pct.toFixed(4), SymbolStat: c.sym };
+  // A new total capacity comes from a new survey, so it moves the survey date. Every other entry moves the last entry date.
+  if (e.type === "settotal") attrs.Date_ = when; else if (hasLast) attrs[LAST] = when;
   attrs[oidField] = cur.oid;
   let ok = false, why = "";
   try {
@@ -121,7 +129,7 @@ async function saveEntry(e) {
     try { await rest(CFG.logUrl + "/applyEdits", { deletes: String(ar.objectId) }, true); } catch (err) { why += " Also could not remove the log row " + ar.objectId + "."; }
     throw new Error("The placement area was not updated, so nothing was saved. " + why);
   }
-  Object.assign(cur, { total: c.total, used: c.used, date: e.date });
+  Object.assign(cur, { total: c.total, used: c.used }, e.type === "settotal" ? { survey: e.date } : { last: e.date });
   await loadLog();
 }
 
@@ -152,9 +160,9 @@ function checks(e, a, before, after) {
   if (e.vol < 0) out.push(["bad", 'Enter a positive number. Use "Material removed" to take volume out.']);
   if (e.vol === 0 && (type === "place" || type === "remove")) out.push(["bad", "Enter a volume greater than zero."]);
   if (after.total <= 0 && type !== "settotal") out.push(["warn", "PA " + sel + ' has no total capacity on record, so percent available cannot be worked out. Use "Set total capacity" first if you know it.']);
-  if (after.total > 0 && after.used > after.total) out.push(["warn", "This puts PA " + sel + " over its recorded capacity by " + fmt(after.used - after.total) + " " + CFG.units + "."]);
+  if (after.total > 0 && after.used > after.total) out.push(["warn", "This puts PA " + sel + " over its recorded capacity by " + fmt(after.used - after.total) + " " + CFG.units + ". You can still save; the overage will be written into the log."]);
   if (after.used < 0) out.push(["bad", "Used volume would go below zero."]);
-  if (a.active !== "Active" && type === "place") out.push(["warn", "PA " + sel + " is marked " + (a.active || "not active") + ". Check before recording material there."]);
+  if (a.active !== "Active" && type !== "settotal") out.push(["bad", "PA " + sel + " is marked " + (a.active || "not active") + ". Set it to Active on the map layer before recording material."]);
   if (before.sym !== after.sym && "GYR".includes(after.sym || "x") && "GYR".includes(before.sym || "x")) out.push(["ok", 'Status changes from "' + SYM[before.sym] + '" to "' + SYM[after.sym] + '".']);
   if (e.date > today()) out.push(["warn", "That date is in the future."]);
   return out;
@@ -186,7 +194,7 @@ ${lastError ? `<div class="err">${esc(lastError)}</div>` : ""}
 <div class="wrap ${busy ? "busy" : ""}">
  <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
   <section class="pnl"><header><h2>Placement areas</h2><span class="sp"></span><div class="tabs"><button id="tabTable" class="${view === "table" ? "on" : ""}">Table</button><button id="tabMap" class="${view === "map" ? "on" : ""}">Map</button></div></header>
-  ${view === "table" ? `<div class="tw"><table><thead><tr><th>Area</th><th>Status</th><th class="num">Total</th><th class="num">Used</th><th class="num">Available</th><th class="num">% available</th><th></th><th>Last entry</th><th class="num">Acres</th></tr></thead><tbody>${rows.map(r => `<tr class="row ${r.a.name === sel ? "sel" : ""}" data-a="${esc(r.a.name)}"><td><b>PA ${esc(r.a.name)}</b></td><td><span class="dot ${r.sym}"></span>${esc(r.sym === "O" || r.sym === "I" ? SYM[r.sym] : r.a.active)}${"GYR".includes(r.sym || "x") ? ' <span class="muted">· ' + SYM[r.sym] + "</span>" : ""}</td><td class="num">${r.total ? fmt(r.total) : '<span class="muted">not set</span>'}</td><td class="num">${fmt(r.used)}</td><td class="num">${r.total ? fmt(r.avail) : ""}</td><td class="num">${r.pct == null ? "" : r.pct.toFixed(1) + "%"}</td><td>${r.pct == null ? "" : `<span class="bar"><i class="${r.sym}" style="width:${Math.max(0, Math.min(100, 100 - r.pct))}%"></i></span>`}</td><td>${esc(r.a.date)}</td><td class="num">${fmt(r.a.acres)}</td></tr>`).join("")}</tbody></table></div>`
+  ${view === "table" ? `<div class="tw"><table><thead><tr><th>Area</th><th>Status</th><th class="num">Total</th><th class="num">Used</th><th class="num">Available</th><th class="num">% available</th><th></th><th>Survey date</th><th>Last entry</th><th class="num">Acres</th></tr></thead><tbody>${rows.map(r => `<tr class="row ${r.a.name === sel ? "sel" : ""}" data-a="${esc(r.a.name)}"><td><b>PA ${esc(r.a.name)}</b></td><td><span class="dot ${r.sym}"></span>${esc(r.sym === "O" || r.sym === "I" ? SYM[r.sym] : r.a.active)}${"GYR".includes(r.sym || "x") ? ' <span class="muted">· ' + SYM[r.sym] + "</span>" : ""}</td><td class="num">${r.total ? fmt(r.total) : '<span class="muted">not set</span>'}</td><td class="num">${fmt(r.used)}</td><td class="num">${r.total ? fmt(r.avail) : ""}</td><td class="num">${r.pct == null ? "" : r.pct.toFixed(1) + "%"}</td><td>${r.pct == null ? "" : `<span class="bar"><i class="${r.sym}" style="width:${Math.max(0, Math.min(100, 100 - r.pct))}%"></i></span>`}</td><td>${esc(r.a.survey)}</td><td>${esc(r.a.last)}</td><td class="num">${fmt(r.a.acres)}</td></tr>`).join("")}</tbody></table></div>`
    : `<div class="in" style="padding-bottom:8px"><div class="legend">${["G", "Y", "R", "O", "I", ""].map(k => `<span><span class="dot ${k}"></span>${SYM[k]}${k === "G" ? " (" + CFG.greenAtOrAbove + "% or more available)" : k === "R" ? " (under " + CFG.redBelow + "%)" : ""}</span>`).join("")}</div></div><svg class="map" viewBox="-20 -20 ${MAP.w + 40} ${MAP.h + 40}" preserveAspectRatio="xMidYMid meet">${rows.map(r => { const m = MAP.paths[r.a.name]; return m ? `<path d="${m.d}" data-a="${esc(r.a.name)}" class="${r.a.name === sel ? "sel" : ""}" fill="var(--${r.sym ? r.sym.toLowerCase() : "none"})"><title>PA ${esc(r.a.name)}</title></path>` : ""; }).join("")}${rows.map(r => { const m = MAP.paths[r.a.name]; return m ? `<text x="${m.lx.toFixed(1)}" y="${(m.ly + 7).toFixed(1)}">${esc(r.a.name)}</text>` : ""; }).join("")}</svg>`}
   </section>
   <section class="pnl"><header><h2>Entry log</h2><span class="sp"></span><span class="small muted">${log.length ? log.length + " entries, newest first" : ""}</span></header><div class="tw" style="max-height:320px">${log.length ? `<table><thead><tr><th>Date</th><th>Area</th><th>Entry</th><th class="num">Volume</th><th>Job</th><th>By</th><th>Note</th></tr></thead><tbody>${log.map(e => `<tr><td>${e.EntryDate ? new Date(e.EntryDate).toISOString().slice(0, 10) : ""}</td><td>PA ${esc(e.AreaName)}</td><td>${esc(e.EntryType)}</td><td class="num">${fmt(e.CubicYards || 0)}</td><td>${esc(e.Job)}</td><td>${esc(e.EnteredBy)}</td><td style="white-space:normal">${esc(e.Note)}</td></tr>`).join("")}</tbody></table>` : '<p class="in muted" style="margin:0">No entries yet.</p>'}</div></section>

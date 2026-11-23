@@ -14,6 +14,11 @@ For each placement area:
 
 * Available = Total capacity - Used
 * Percent available = Available / Total capacity x 100
+* Two dates per area: `Date_` is the survey date behind the capacity figure and only moves
+  when the total capacity is set. `LastEntry` is the date of the last material entry.
+* Entries into an area that is not marked Active are blocked, except setting its total
+  capacity. Entries that exceed capacity are allowed with a warning, and the overage is
+  written into the log note.
 * Status color: green at or above 66 percent available, red below 33 percent, yellow
   between. Areas marked Offline or Inactive keep their own status.
 
@@ -36,7 +41,7 @@ row is removed again, so the log never records something the layer did not recei
 
 1. Hosted feature layer of placement areas with these fields: `NAME`, `TotalCapac`,
    `UsedCapac`, `AvailCapac`, `PercCapac`, `Date_`, `Active`, `Status`, `SymbolStat`,
-   `Acres`. Editing on, attribute updates allowed.
+   `Acres`, `LastEntry` (date). Editing on, attribute updates allowed.
 2. Hosted table for the log with: `AreaName`, `EntryType`, `Job`, `EnteredBy`, `Note`
    (text), `CubicYards` (double), `EntryDate` (date). Editing on, adds allowed.
 3. Developer credentials of type OAuth 2.0 (user authentication) with the page address
