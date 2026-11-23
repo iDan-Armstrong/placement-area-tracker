@@ -216,6 +216,10 @@ async function initMap() {
       const t = new FeatureLayer({ url: CFG.areasUrl, title: pa.title + " (test copy)", renderer: pa.renderer, popupTemplate: pa.popupTemplate, labelingInfo: pa.labelingInfo, labelsVisible: pa.labelsVisible });
       ops.remove(pa); ops.add(t); await t.load(); pa = t;
     }
+    // Label every placement area with its number, in both modes.
+    pa.labelingInfo = [{ labelExpressionInfo: { expression: '"PA " + $feature.NAME' }, labelPlacement: "always-horizontal", deconflictionStrategy: "none",
+      symbol: { type: "text", color: [3, 42, 84, 1], haloColor: [255, 255, 255, 1], haloSize: 2, font: { family: "Arial", size: 11, weight: "bold" } } }];
+    pa.labelsVisible = true;
     for (const l of [pa, tracts]) {
       l.outFields = ["*"];
       const pt = l.popupTemplate || l.createPopupTemplate();
