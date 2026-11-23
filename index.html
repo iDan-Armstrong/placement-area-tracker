@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Placement Area Tracker</title>
+<title>SNND Manager</title>
 <style>
-:root{--bg:#eef2f4;--panel:#fff;--ink:#14212b;--mute:#5a6976;--line:#d3dbe1;--soft:#f5f8fa;--accent:#0a5f8a;--accent-ink:#fff;
+:root{--bg:#eef2f4;--panel:#fff;--ink:#14212b;--mute:#5a6976;--line:#d3dbe1;--soft:#f5f8fa;--accent:#0a5f8a;--accent-ink:#fff;--gold:#c79100;
  --g:#2e8b57;--y:#d9a400;--r:#c0392b;--o:#7b8794;--i:#b9c2ca;--none:#dfe5ea;--warn-bg:#fff3d6;--warn:#8a5a00;--bad-bg:#fbe9e7;--bad:#b3261e;--ok-bg:#e6f4ea;--ok:#1d7a3a;
  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,Consolas,"Cascadia Mono",monospace}
-@media (prefers-color-scheme:dark){:root{--bg:#0e1419;--panel:#161e26;--ink:#e4e9ee;--mute:#93a1ae;--line:#2a343e;--soft:#1b242d;--accent:#4aa8d8;--accent-ink:#06202e;--none:#2a343e;--i:#55616c;--warn-bg:#2e2410;--warn:#e3b341;--bad-bg:#33171a;--bad:#ff8a80;--ok-bg:#12291b;--ok:#5fd08a;color-scheme:dark}}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1419;--panel:#161e26;--ink:#e4e9ee;--mute:#93a1ae;--line:#2a343e;--soft:#1b242d;--accent:#4aa8d8;--accent-ink:#06202e;--gold:#e0a800;--none:#2a343e;--i:#55616c;--warn-bg:#2e2410;--warn:#e3b341;--bad-bg:#33171a;--bad:#ff8a80;--ok-bg:#12291b;--ok:#5fd08a;color-scheme:dark}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--sans)}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -16,7 +16,35 @@ button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 h1,h2,h3{margin:0;font-weight:600}
 .top{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
-.top h1{font-size:17px}
+.top h1{font-size:17px;line-height:1.2}
+.top .org{font-size:12px;color:var(--mute)}
+.logo{height:40px;width:auto;display:block}
+.nav{display:flex;gap:2px;margin-left:10px;align-self:stretch;align-items:flex-end}
+.nav button{border:0;background:none;padding:8px 12px;border-bottom:3px solid transparent;color:var(--mute);font-weight:600;margin-bottom:-10px}
+.nav button.on{color:var(--ink);border-bottom-color:var(--gold)}
+h3.sec,#mapSide h3{font-size:13px;margin:0 0 8px;padding-top:12px;border-top:1px solid var(--line)}
+#mapPage{display:flex;flex-direction:column;height:max(540px,calc(100vh - 118px))}
+#mapPage[hidden]{display:none}
+.mapbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.mapbar .seg{min-width:300px}
+.mapbar .key{display:inline-block;width:26px;border-top:3px dashed var(--gold);vertical-align:middle;margin-right:6px}
+.mapwrap{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 330px;min-height:0}
+#mapView{min-height:0;min-width:0;background:var(--soft)}
+#mapSide{background:var(--panel);border-left:1px solid var(--line);padding:14px;overflow:auto;font-size:13px}
+#mapSide h2{font-size:16px;margin-bottom:6px}
+#mapSide h3{margin-top:14px}
+#mapSide p{margin:0 0 10px}
+dl.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:0 0 12px}
+dl.kv dt{color:var(--mute)}
+dl.kv dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+ul.files{list-style:none;margin:0 0 10px;padding:0}
+ul.files li{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+ul.files .link{flex:1;min-width:120px;text-align:left;border:0;background:none;padding:0;color:var(--accent);text-decoration:underline;overflow-wrap:anywhere}
+.btn.danger{background:var(--bad);border-color:var(--bad);color:#fff;font-weight:600}
+label.up{display:inline-block;cursor:pointer;margin:4px 0 8px}
+#foot{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;padding:14px 16px;color:var(--mute);font-size:12.5px;border-top:1px solid var(--line);background:var(--panel);margin-top:14px}
+#mapPage:not([hidden])+#foot{margin-top:0}
+.devlogo{height:26px;width:auto}
 .top .sub{color:var(--mute);font-size:12.5px}
 .top .sp{flex:1}
 .btn{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 11px;font-size:13px}
@@ -68,10 +96,6 @@ input.big{font:600 20px var(--mono);text-align:right}
 .ba .new{font-weight:700}
 .msg{border-radius:6px;padding:7px 10px;font-size:13px;margin-top:8px}
 .msg.warn{background:var(--warn-bg);color:var(--warn)}.msg.bad{background:var(--bad-bg);color:var(--bad)}.msg.ok{background:var(--ok-bg);color:var(--ok)}
-svg.map{width:100%;height:520px;display:block;background:var(--soft);border-radius:0 0 10px 10px}
-svg.map path{stroke:var(--panel);stroke-width:1.5;cursor:pointer;vector-effect:non-scaling-stroke}
-svg.map path.sel{stroke:var(--ink);stroke-width:3}
-svg.map text{font:600 22px var(--sans);fill:var(--ink);paint-order:stroke;stroke:var(--panel);stroke-width:5px;pointer-events:none;text-anchor:middle}
 .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mute)}
 .tabs{display:flex;gap:2px}
 .tabs button{border:0;background:none;padding:6px 10px;border-bottom:2px solid transparent;color:var(--mute);font-weight:500}
@@ -80,7 +104,7 @@ svg.map text{font:600 22px var(--sans);fill:var(--ink);paint-order:stroke;stroke
 dialog{border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:min(560px,calc(100vw - 32px));padding:18px}
 dialog::backdrop{background:rgba(5,10,15,.5)}
 [hidden]{display:none!important}
-@media (max-width:980px){.wrap{grid-template-columns:1fr}svg.map{height:380px}}
+@media (max-width:980px){.wrap{grid-template-columns:1fr}.mapwrap{grid-template-columns:1fr;grid-template-rows:minmax(340px,1fr) auto}#mapSide{border-left:0;border-top:1px solid var(--line);max-height:45vh}#mapPage{height:auto;min-height:calc(100vh - 118px)}}
 
 .banner{background:var(--warn-bg);color:var(--warn);padding:6px 16px;font-size:13px;font-weight:600}
 .center{max-width:560px;margin:60px auto;padding:0 16px}
@@ -92,6 +116,11 @@ dialog::backdrop{background:rgba(5,10,15,.5)}
 </head>
 <body>
 <div id="app"></div>
+<div id="mapPage" hidden>
+ <div class="mapbar"><div class="seg"><button data-mode="pa" class="on">Placement areas</button><button data-mode="re">Real estate</button></div><span class="small muted"><span class="key"></span>Placement area outline while Real estate is active</span></div>
+ <div class="mapwrap"><div id="mapView"></div><aside id="mapSide"></aside></div>
+</div>
+<footer id="foot"></footer>
 <div class="toast" id="toast" hidden></div>
 <script src="config.js"></script>
 <script src="app.js"></script>
