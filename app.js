@@ -75,16 +75,22 @@ async function finishSignIn(code, state) {
   session = { token: j.access_token, username: j.username, expires: Date.now() + (j.expires_in || 1800) * 1000 };
   sessionStorage.setItem(SKEY, JSON.stringify(session));
 }
-function signOut() { sessionStorage.removeItem(SKEY); session = null; areas = []; log = []; if (M) { location.reload(); return; } render(); }
+const EXPIRED = "Your sign-in has expired. Please sign in to ArcGIS Online again.";
+function signOut(msg) {
+  sessionStorage.removeItem(SKEY); session = null; areas = []; log = []; lastError = msg || "";
+  // Once the map library is loaded, a fresh page is the clean way back to the sign-in screen.
+  if (window.require && window.require.on) { if (msg) sessionStorage.setItem("pat-msg", msg); location.reload(); return; }
+  render();
+}
 
 /* ---------- ArcGIS REST ---------- */
 async function rest(url, params, post) {
-  if (session && Date.now() > session.expires - 30000) { signOut(); throw new Error("Your sign-in expired. Please sign in again."); }
+  if (session && Date.now() > session.expires - 30000) { signOut(EXPIRED); throw new Error(EXPIRED); }
   const p = new URLSearchParams(Object.assign({ f: "json", token: session.token }, params));
   const r = post ? await fetch(url, { method: "POST", body: p }) : await fetch(url + "?" + p);
   const j = await r.json();
   if (j.error) {
-    if (j.error.code === 498 || j.error.code === 499) signOut();
+    if (j.error.code === 498 || j.error.code === 499) { signOut(EXPIRED); throw new Error(EXPIRED); }
     throw new Error((j.error.message || "Request failed") + (j.error.details && j.error.details.length ? " (" + j.error.details.join("; ") + ")" : "") + " [" + url.split("/rest/services/").pop() + "]");
   }
   return j;
@@ -184,6 +190,14 @@ async function initMap() {
     await loadSdk();
     const [esriConfig, esriId, WebMap, MapView, FeatureLayer, LayerList, Legend, Expand, AttachmentsContent, reactiveUtils] = await mods(["esri/config", "esri/identity/IdentityManager", "esri/WebMap", "esri/views/MapView", "esri/layers/FeatureLayer", "esri/widgets/LayerList", "esri/widgets/Legend", "esri/widgets/Expand", "esri/popup/content/AttachmentsContent", "esri/core/reactiveUtils"]);
     esriConfig.portalUrl = CFG.portal;
+    // Never show the map library's own sign-in box (it names internal item IDs). If it asks for one,
+    // either the sign-in has expired, which sends the person back to this page's sign-in screen,
+    // or the account cannot see one of the layers.
+    esriId.on("dialog-create", async () => {
+      try { await rest(CFG.portal + "/sharing/rest/portals/self", {}); } catch (e) { return; }
+      if (!M) { mapState = "error:Your account does not have access to the district maps. Ask the GIS administrator to share them with you."; renderSide(); }
+    });
+    await rest(CFG.portal + "/sharing/rest/portals/self", {});
     const cred = { token: session.token, userId: session.username, expires: session.expires, ssl: true };
     esriId.registerToken(Object.assign({ server: CFG.portal + "/sharing/rest" }, cred));
     esriId.registerToken(Object.assign({ server: CFG.areasUrl.split("/rest/services")[0] + "/rest/services" }, cred));
@@ -414,7 +428,7 @@ document.addEventListener("click", async e => {
   if ((v = ds("del")) != null) { removeFile(v); return; }
   if (t.id === "navAreas" || t.id === "btnToEntry") { view = "areas"; render(); }
   else if (t.id === "navMap") { view = "map"; render(); }
-  else if (t.id === "btnOut") signOut();
+  else if (t.id === "btnOut") signOut("");
   else if (t.id === "btnClear") { form.vol = ""; form.note = ""; form.job = ""; render(); }
   else if (t.id === "btnRefresh") { await run(loadAll, "Refreshed"); if (M) { M.pa.refresh(); M.tracts.refresh(); } }
   else if (t.id === "btnLogCsv") {
@@ -435,6 +449,7 @@ async function run(fn, okMsg) {
   renderFoot();
   try { session = JSON.parse(sessionStorage.getItem(SKEY) || "null"); if (session && Date.now() > session.expires) session = null; } catch (e) { session = null; }
   const q = new URLSearchParams(location.search);
+  const kept = sessionStorage.getItem("pat-msg"); if (kept) { sessionStorage.removeItem("pat-msg"); if (!session) lastError = kept; }
   if (q.get("error")) { lastError = "Sign-in was cancelled or refused: " + (q.get("error_description") || q.get("error")); history.replaceState(null, "", REDIRECT); }
   if (q.get("code")) { try { await finishSignIn(q.get("code"), q.get("state")); } catch (err) { lastError = err.message; } }
   render();
