@@ -19,7 +19,7 @@ window.TRACKER_CONFIG = {
   sdk: "4.31",
 
   // Who may add and remove attached files. Viewing is always on.
-  files: { areas: true, tracts: false },
+  files: { areas: true, tracts: true },
 
   units: "cubic yards",
   greenAtOrAbove: 66,
