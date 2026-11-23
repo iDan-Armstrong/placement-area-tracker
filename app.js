@@ -210,7 +210,7 @@ async function initMap() {
     }
     for (let p = tracts.parent; p && p.type === "group"; p = p.parent) p.visible = true;
     const view = new MapView({ container: "mapView", map: ops });
-    view.ui.add(new Expand({ view, content: new LayerList({ view }), expanded: innerWidth > 1100, expandTooltip: "Layers" }), "top-right");
+    view.ui.add(new Expand({ view, content: new LayerList({ view }), expanded: innerWidth > 1400, expandTooltip: "Layers" }), "top-right");
     view.ui.add(new Expand({ view, content: new Legend({ view }), expandTooltip: "Legend" }), "bottom-left");
     M = { view, pa, tracts, paRenderer: pa.renderer };
     reactiveUtils.watch(() => view.popup && view.popup.selectedFeature, g => onPick(g));

@@ -1,12 +1,21 @@
-# Placement Area Tracker
+# SNND Manager
 
-A single web page for recording material placed in dredged material placement areas.
-Staff sign in with their ArcGIS Online account, pick an area, type a volume, and save.
-The page updates the area's capacity fields on a hosted feature layer and adds a row
-to a log table.
+A web page for the Sabine-Neches Navigation District. Staff sign in with their ArcGIS
+Online account and can:
 
-The repository holds code only. All figures stay in the ArcGIS Online organization and
-are read after sign-in.
+* record material placed in each dredged material placement area,
+* change a placement area's status,
+* view the district's Operations and Real Estate web maps as one map with a layer list,
+* view, add and remove the survey files attached to a placement area,
+* view the title documents attached to a real estate tract.
+
+Saving updates the capacity fields on a hosted feature layer and adds a row to a log
+table. Status changes and file changes are logged the same way.
+
+The repository holds code and logos only. All figures, maps and documents stay in the
+ArcGIS Online organization and are read after sign-in.
+
+Developed by Arceneaux Wilson & Cole. Author: Dan Armstrong.
 
 ## What it calculates
 
@@ -22,6 +31,16 @@ For each placement area:
 * Status color: green at or above 66 percent available, red below 33 percent, yellow
   between. Areas marked Offline or Inactive keep their own status.
 
+Status choices and what they write to the layer:
+
+| Choice | `Active` | `Status` | Material entries |
+|---|---|---|---|
+| Active | Active | A | allowed |
+| In use | Active | IU | allowed |
+| Inactive | Inactive | IA | blocked |
+| Under construction | Offline | UC | blocked |
+| Offline | Offline | empty | blocked |
+
 Entry types: material placed, material removed, set the used total, set the total
 capacity (for use after a new survey).
 
@@ -29,13 +48,28 @@ Before each save the page reads the area again from the layer, so two people sav
 the same time cannot overwrite each other's totals. If the layer update fails, the log
 row is removed again, so the log never records something the layer did not receive.
 
+## Map
+
+The Map page loads the Operations web map and adds any layer that only the Real Estate
+web map has. Two modes:
+
+* Placement areas: placement areas can be selected. Real estate tracts are faded and
+  cannot be selected.
+* Real estate: tracts can be selected. Placement areas are drawn as a dashed gold
+  outline on top and cannot be selected.
+
+Selecting a feature in the active mode lists its attached files in the side panel.
+`files` in `config.js` controls which of the two layers allow adding and removing files.
+In test mode the placement area layer on the map is replaced by the test copy.
+
 ## Files
 
 | File | Purpose |
 |---|---|
 | `index.html` | Page and styles |
 | `app.js` | Sign-in, reading and saving, calculations, screen |
-| `config.js` | Organization address, app ID, layer and log addresses, color thresholds |
+| `config.js` | Organization address, app ID, layer, log and web map addresses, file permissions, color thresholds |
+| `assets/` | Logos |
 
 ## Setting up for an organization
 
@@ -57,4 +91,6 @@ session storage and is gone when the tab closes.
 ## Limits
 
 * No undo button. To correct a mistake, save a new entry that reverses it.
-* The map is a simple drawing of the area shapes, with no zoom.
+* One attached file can be at most 10 MB.
+* Removing an attached file cannot be undone.
+* The map needs the ArcGIS Maps SDK for JavaScript, loaded from js.arcgis.com.

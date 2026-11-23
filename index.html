@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SNND Manager</title>
 <style>
-:root{--bg:#eef2f4;--panel:#fff;--ink:#14212b;--mute:#5a6976;--line:#d3dbe1;--soft:#f5f8fa;--accent:#0a5f8a;--accent-ink:#fff;--gold:#c79100;
+:root{--bg:#eef2f4;--panel:#fff;--ink:#14212b;--mute:#5a6976;--line:#d3dbe1;--soft:#f5f8fa;--accent:#1f63a6;--navy:#032a54;--accent-ink:#fff;--gold:#c79100;
  --g:#2e8b57;--y:#d9a400;--r:#c0392b;--o:#7b8794;--i:#b9c2ca;--none:#dfe5ea;--warn-bg:#fff3d6;--warn:#8a5a00;--bad-bg:#fbe9e7;--bad:#b3261e;--ok-bg:#e6f4ea;--ok:#1d7a3a;
  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,Consolas,"Cascadia Mono",monospace}
-@media (prefers-color-scheme:dark){:root{--bg:#0e1419;--panel:#161e26;--ink:#e4e9ee;--mute:#93a1ae;--line:#2a343e;--soft:#1b242d;--accent:#4aa8d8;--accent-ink:#06202e;--gold:#e0a800;--none:#2a343e;--i:#55616c;--warn-bg:#2e2410;--warn:#e3b341;--bad-bg:#33171a;--bad:#ff8a80;--ok-bg:#12291b;--ok:#5fd08a;color-scheme:dark}}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1419;--panel:#161e26;--ink:#e4e9ee;--mute:#93a1ae;--line:#2a343e;--soft:#1b242d;--accent:#5aa2e6;--navy:#e4e9ee;--accent-ink:#06202e;--gold:#e0a800;--none:#2a343e;--i:#55616c;--warn-bg:#2e2410;--warn:#e3b341;--bad-bg:#33171a;--bad:#ff8a80;--ok-bg:#12291b;--ok:#5fd08a;color-scheme:dark}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--sans)}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -16,9 +16,11 @@ button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 h1,h2,h3{margin:0;font-weight:600}
 .top{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
-.top h1{font-size:17px;line-height:1.2}
+.top h1{font-size:17px;line-height:1.2;color:var(--navy)}
+.top{border-top:4px solid #032a54}
 .top .org{font-size:12px;color:var(--mute)}
-.logo{height:40px;width:auto;display:block}
+.logo{height:44px;width:auto;display:block}
+@media (prefers-color-scheme:dark){.logo,.devlogo{background:#fff;border-radius:6px;padding:4px 6px;box-sizing:content-box}}
 .nav{display:flex;gap:2px;margin-left:10px;align-self:stretch;align-items:flex-end}
 .nav button{border:0;background:none;padding:8px 12px;border-bottom:3px solid transparent;color:var(--mute);font-weight:600;margin-bottom:-10px}
 .nav button.on{color:var(--ink);border-bottom-color:var(--gold)}
@@ -122,7 +124,7 @@ dialog::backdrop{background:rgba(5,10,15,.5)}
 </div>
 <footer id="foot"></footer>
 <div class="toast" id="toast" hidden></div>
-<script src="config.js?v=2"></script>
-<script src="app.js?v=2"></script>
+<script src="config.js?v=3"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>

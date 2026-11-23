@@ -25,6 +25,6 @@ window.TRACKER_CONFIG = {
   greenAtOrAbove: 66,
   redBelow: 33,
 
-  logos: { org: "assets/snnd-logo.png", dev: "assets/awc-logo.png" },
+  logos: { org: "assets/snnd-logo.png", dev: "assets/awc-logo.svg" },
   developer: { company: "Arceneaux Wilson & Cole", author: "Dan Armstrong" }
 };
